@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sudoku Game</title>
+    <style>
+      .main {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      }
+      button{
+        background-color: rgb(247, 247, 247);
+        outline: none;
+        font-family: 'Noto Sans JP', sans-serif;
+        justify-self: center;
+        font-weight: 700;
+        font-size: larger;
+        border-radius: 8px;
+        border: rgba(0, 0, 0, 0) 0.1px solid;
+        box-shadow: rgb(90, 90, 90) 2px 2px 5px;
+    
+    }
+    button:hover{
+        cursor: pointer;
+        background-color: black;
+        color: white;
+    
+    }
+      table {
+        border-collapse: collapse;
+        margin: 20px;
+      }
+
+      td {
+        width: 45px;
+        height: 45px;
+        text-align: center;
+        border: 1px solid #000;
+      }
+
+      input {
+        width: 100%;
+        height: 100%;
+        font-size: 25px;
+        text-align: center;
+        border: 1px solid #000;
+      }
+
+      #message {
+        margin-top: 20px;
+        color: red;
+      }
+      .reload {
+        font-family: Lucida Sans Unicode
+      }
+    </style>
+  </head>
+  <body>
+    <div class="main">
+      <h1>The Best Sudoku Game</h1>
+      <table id="sudoku-board"></table>
+      <button onclick="renderBoard(generateBoard())"><span class=reload>&#x21bb;</span></button>
+      <div id="message"></div>
+    </div>
+
+    <script>
+      const MAX_MISTAKES = 3;
+      const TIME_LIMIT_SECONDS = 300; // 5 minutes
+      let mistakes = 0;
+      let timer;
+
+      // Function to generate a random Sudoku board
+      function generateBoard() {
+        const board = [];
+        for (let i = 0; i < 9; i++) {
+          const row = [];
+          for (let j = 0; j < 9; j++) {
+            row.push(0);
+          }
+          board.push(row);
+        }
+
+        // Fill the board with a complete Sudoku solution
+        solveSudoku(board);
+
+        // Remove some numbers to create the puzzle
+        removeNumbers(board, 30); // Adjust the number of removed elements as needed
+
+        return board;
+      }
+
+      // Function to solve the Sudoku puzzle
+      function solveSudoku(board) {
+        for (let row = 0; row < 9; row++) {
+          for (let col = 0; col < 9; col++) {
+            if (board[row][col] === 0) {
+              for (let num = 1; num <= 9; num++) {
+                if (isValidMove(board, row, col, num)) {
+                  board[row][col] = num;
+
+                  if (solveSudoku(board)) {
+                    return true;
+                  }
+
+                  board[row][col] = 0;
+                }
+              }
+
+              return false;
+            }
+          }
+        }
+
+        return true;
+      }
+
+      // Function to check if a move is valid
+      function isValidMove(board, row, col, num) {
+        // Check if the number is not in the current row or column
+        for (let i = 0; i < 9; i++) {
+          if (board[row][i] === num || board[i][col] === num) {
+            return false;
+          }
+        }
+
+        // Check if the number is not in the current 3x3 grid
+        const startRow = Math.floor(row / 3) * 3;
+        const startCol = Math.floor(col / 3) * 3;
+        for (let i = 0; i < 3; i++) {
+          for (let j = 0; j < 3; j++) {
+            if (board[startRow + i][startCol + j] === num) {
+              return false;
+            }
+          }
+        }
+
+        return true;
+      }
+
+      // Function to remove numbers from the board to create the puzzle
+      function removeNumbers(board, count) {
+        let cellsToRemove = count;
+        while (cellsToRemove > 0) {
+          const row = Math.floor(Math.random() * 9);
+          const col = Math.floor(Math.random() * 9);
+
+          if (board[row][col] !== 0) {
+            board[row][col] = 0;
+            cellsToRemove--;
+          }
+        }
+      }
+
+      // Function to render the Sudoku board
+      function renderBoard(board) {
+        const table = document.getElementById("sudoku-board");
+        table.innerHTML = "";
+
+        for (let i = 0; i < 9; i++) {
+          const row = document.createElement("tr");
+          for (let j = 0; j < 9; j++) {
+            const cell = document.createElement("td");
+            const input = document.createElement("input");
+            input.type = "text";
+            input.maxLength = 1;
+            input.value = board[i][j] === 0 ? "" : board[i][j];
+            input.addEventListener("input", (event) =>
+              handleInput(event, i, j, board)
+            );
+            cell.appendChild(input);
+            row.appendChild(cell);
+          }
+          table.appendChild(row);
+        }
+        mistakes = 0;
+        updateMessage();
+        startTimer();
+      }
+
+      // Function to handle user input
+      function handleInput(event, row, col, board) {
+        const inputValue = parseInt(event.target.value);
+        if (!isNaN(inputValue) && inputValue >= 1 && inputValue <= 9) {
+          if (isValidMove(board, row, col, inputValue)) {
+            board[row][col] = inputValue;
+            event.target.value = inputValue;
+          } else {
+            event.target.value = "";
+            handleMistake();
+          }
+        } else {
+          event.target.value = "";
+          handleMistake();
+        }
+      }
+
+      // Function to handle mistakes
+      function handleMistake() {
+        mistakes++;
+        updateMessage();
+
+        if (mistakes >= MAX_MISTAKES) {
+          endGame(false); // Game over due to too many mistakes
+        }
+      }
+
+      // Function to update the mistake message
+      function updateMessage() {
+        const messageElement = document.getElementById("message");
+        messageElement.textContent = `Mistakes: ${mistakes}/${MAX_MISTAKES}`;
+      }
+
+      // Function to end the game
+      function endGame(isTimeUp) {
+        clearInterval(timer);
+
+        const messageElement = document.getElementById("message");
+        if (isTimeUp) {
+          messageElement.textContent = "Time is up! Game over.";
+        } else {
+          messageElement.textContent = "Too many mistakes! Game over.";
+        }
+
+        // You can add additional actions here, such as displaying a modal or restarting the game.
+      }
+
+      // Function to start the timer
+      function startTimer() {
+        let timeRemaining = TIME_LIMIT_SECONDS;
+        timer = setInterval(() => {
+          timeRemaining--;
+          if (timeRemaining <= 0) {
+            endGame(true); // Time is up
+          }
+        }, 1000);
+      }
+
+      // Generate and render the initial Sudoku board
+      const sudokuBoard = generateBoard();
+      renderBoard(sudokuBoard);
+
+    </script>
+  </body>
+</html>
